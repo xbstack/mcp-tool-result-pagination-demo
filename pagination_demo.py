@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from dataclasses import dataclass
 from typing import Iterable
+
+
+MAX_CURSOR_LENGTH = 256
 
 
 @dataclass(frozen=True)
@@ -30,13 +34,26 @@ def encode_cursor(offset: int) -> str:
 
 
 def decode_cursor(cursor: str | None) -> int:
-    if not cursor:
+    if cursor is None or cursor == "":
         return 0
-    padding = "=" * (-len(cursor) % 4)
-    decoded = base64.urlsafe_b64decode((cursor + padding).encode())
-    payload = json.loads(decoded)
+    if not isinstance(cursor, str) or len(cursor) > MAX_CURSOR_LENGTH:
+        raise ValueError("invalid cursor")
+
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        decoded = base64.b64decode(
+            (cursor + padding).encode("ascii"),
+            altchars=b"-_",
+            validate=True,
+        )
+        payload = json.loads(decoded.decode("utf-8"))
+    except (ValueError, UnicodeError, binascii.Error):
+        raise ValueError("invalid cursor") from None
+
+    if not isinstance(payload, dict):
+        raise ValueError("invalid cursor")
     offset = payload.get("offset")
-    if not isinstance(offset, int) or offset < 0:
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
         raise ValueError("invalid cursor")
     return offset
 

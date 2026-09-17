@@ -8,6 +8,7 @@ This repository does **not** claim that MCP defines a universal 64 KB tool-resul
 
 ```bash
 python3 verify.py
+python3 -m unittest -v
 ```
 
 Expected result:
